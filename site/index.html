@@ -36,6 +36,8 @@
   .day .d { font-size: 16px; color: var(--soft); }
   footer { font: 15px/1.6 var(--mono); color: var(--soft); overflow-wrap: anywhere; }
   footer a { color: var(--ink); }
+  .how { margin: 0; font-size: 17px; }
+  .how a { color: var(--ink); font-weight: 700; text-decoration-color: var(--pink); text-decoration-thickness: 3px; text-underline-offset: 3px; }
   .error { border-color: var(--red); }
   @media (prefers-reduced-motion: reduce) { .bar .fill, .day .col { transition: none; } }
 </style>
@@ -50,6 +52,7 @@
   <section class="card"><h2>By team</h2><div class="bars" id="teams"></div></section>
   <section class="card"><h2>By day</h2><div class="days" id="days"></div></section>
   <footer id="source">Loading data/stats.json…</footer>
+  <p class="how">How this page gets built: <a href="https://claude.ai/artifact/JUmDjV6pnAW5FBoyE2tMeg">step through the pipeline</a> · <a href="https://github.com/codebyjackson/gha-demo-data">data repo</a> · <a href="https://github.com/codebyjackson/gha-demo-site">site repo</a></p>
 </main>
 <script>
   const COLORS = { Platform: 'var(--teal)', Product: 'var(--green)', Data: 'var(--pink)', Design: 'var(--yellow)' };

@@ -8,6 +8,8 @@ The Pages half of a GitHub Actions demo. This repo holds no real data. **Deploy 
 
 `site/data/stats.json` is sample data. It goes live only until the first green data run exists.
 
+Live: https://codebyjackson.github.io/gha-demo-site/
+
 Setup: Settings → Pages → Source: **GitHub Actions**, plus a `CROSS_REPO_TOKEN` secret (the same token as the data repo).
 
 Preview locally: `python -m http.server -d site 8000`, then open http://localhost:8000.
