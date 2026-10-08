@@ -1,0 +1,78 @@
+name: Deploy site
+
+on:
+  repository_dispatch:
+    types: [data-updated]
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "Build data run ID to publish (leave blank for the latest green run)"
+        required: false
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time. A deploy that has started is allowed to finish.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  DATA_REPO: ${{ vars.DATA_REPO || format('{0}/gha-demo-data', github.repository_owner) }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Pick the data run to publish
+        id: run
+        env:
+          GH_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
+          FROM_DISPATCH: ${{ github.event.client_payload.run_id }}
+          FROM_INPUT: ${{ inputs.run_id }}
+        run: |
+          RUN_ID="${FROM_DISPATCH:-$FROM_INPUT}"
+          if [ -z "$RUN_ID" ] && [ -n "$GH_TOKEN" ]; then
+            RUN_ID=$(gh run list -R "$DATA_REPO" --workflow build-data.yml --branch main \
+              --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty' || true)
+          fi
+          if [ -z "$RUN_ID" ]; then
+            echo "No green data run yet, so the committed sample data goes live" | tee -a "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Publishing data from $DATA_REPO run $RUN_ID"
+            echo "Data from https://github.com/$DATA_REPO/actions/runs/$RUN_ID" >> "$GITHUB_STEP_SUMMARY"
+          fi
+          echo "id=$RUN_ID" >> "$GITHUB_OUTPUT"
+
+      - name: Download stats.json from the data repo's run
+        if: steps.run.outputs.id != ''
+        uses: actions/download-artifact@v8
+        with:
+          name: stats-json
+          path: site/data
+          repository: ${{ env.DATA_REPO }}
+          run-id: ${{ steps.run.outputs.id }}
+          github-token: ${{ secrets.CROSS_REPO_TOKEN }}
+
+      - uses: actions/configure-pages@v6
+
+      - name: Pack site/ as the github-pages artifact
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v5

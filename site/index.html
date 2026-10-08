@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Team Coffee Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Shrikhand&family=Bricolage+Grotesque:wght@400..800&family=JetBrains+Mono:wght@400;700&display=swap">
+<style>
+  :root {
+    --paper: #E8E4DD; --card: #F6F2EA; --ink: #17131A; --soft: #4A4150;
+    --pink: #EF4F96; --yellow: #FFD12A; --teal: #2FB7C4; --green: #4CC63F; --red: #E2262E;
+    --display: 'Shrikhand', Georgia, serif;
+    --body: 'Bricolage Grotesque', 'Segoe UI', Arial, sans-serif;
+    --mono: 'JetBrains Mono', Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 18px/1.5 var(--body); }
+  main { max-width: 960px; margin: 0 auto; padding: 48px 20px 64px; display: grid; gap: 28px; }
+  h1 { font: 400 clamp(44px, 9vw, 84px)/1.05 var(--display); margin: 0; text-shadow: 5px 5px 0 var(--pink); text-wrap: balance; }
+  .sub { margin: 8px 0 0; color: var(--soft); font-size: 20px; }
+  .card { background: var(--card); border: 5px solid var(--ink); border-radius: 24px; box-shadow: 8px 8px 0 var(--ink); padding: 24px; min-width: 0; }
+  .total { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+  .total b { font: 400 clamp(64px, 14vw, 120px)/1 var(--display); }
+  .total span { font-size: 22px; font-weight: 700; }
+  h2 { font: 800 24px/1.2 var(--body); margin: 0 0 16px; letter-spacing: .04em; text-transform: uppercase; }
+  .bars { display: grid; gap: 12px; }
+  .bar { display: grid; grid-template-columns: 110px 1fr 56px; align-items: center; gap: 12px; }
+  .bar .track { height: 34px; border: 4px solid var(--ink); border-radius: 12px; background: var(--paper); overflow: hidden; }
+  .bar .fill { height: 100%; border-right: 4px solid var(--ink); transition: width .8s cubic-bezier(.2,.8,.2,1); }
+  .bar .n { font: 700 20px var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+  .days { display: flex; align-items: flex-end; gap: 12px; height: 220px; }
+  .day { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; height: 100%; justify-content: flex-end; }
+  .day .col { width: 100%; border: 4px solid var(--ink); border-radius: 12px 12px 4px 4px; background: var(--yellow); transition: height .8s cubic-bezier(.2,.8,.2,1); }
+  .day .n { font: 700 18px var(--mono); }
+  .day .d { font-size: 16px; color: var(--soft); }
+  footer { font: 15px/1.6 var(--mono); color: var(--soft); overflow-wrap: anywhere; }
+  footer a { color: var(--ink); }
+  .error { border-color: var(--red); }
+  @media (prefers-reduced-motion: reduce) { .bar .fill, .day .col { transition: none; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Team Coffee Board</h1>
+    <p class="sub" id="range">Cups of coffee per team, straight from the data repo.</p>
+  </header>
+  <section class="card total" aria-live="polite"><b id="total">…</b><span>cups this week</span></section>
+  <section class="card"><h2>By team</h2><div class="bars" id="teams"></div></section>
+  <section class="card"><h2>By day</h2><div class="days" id="days"></div></section>
+  <footer id="source">Loading data/stats.json…</footer>
+</main>
+<script>
+  const COLORS = { Platform: 'var(--teal)', Product: 'var(--green)', Data: 'var(--pink)', Design: 'var(--yellow)' };
+  const fmtDay = iso => new Date(iso + 'T12:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+
+  fetch('data/stats.json', { cache: 'no-store' })
+    .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+    .then(render)
+    .catch(err => {
+      const src = document.getElementById('source');
+      src.textContent = `Couldn't load data/stats.json (${err.message}). Run the Deploy site workflow to publish data.`;
+      src.parentElement.querySelector('.total').classList.add('error');
+    });
+
+  function render(stats) {
+    document.getElementById('total').textContent = stats.total_cups;
+    const days = Object.keys(stats.by_day);
+    if (days.length) document.getElementById('range').textContent =
+      `Cups of coffee per team, ${fmtDay(days[0])} to ${fmtDay(days[days.length - 1])}.`;
+
+    const maxTeam = Math.max(...Object.values(stats.by_team));
+    document.getElementById('teams').innerHTML = Object.entries(stats.by_team).map(([team, cups]) => `
+      <div class="bar"><strong>${team}</strong>
+        <div class="track"><div class="fill" style="width:0;background:${COLORS[team] || 'var(--teal)'}" data-w="${(cups / maxTeam) * 100}%"></div></div>
+        <span class="n">${cups}</span></div>`).join('');
+
+    const maxDay = Math.max(...Object.values(stats.by_day));
+    document.getElementById('days').innerHTML = Object.entries(stats.by_day).map(([day, cups]) => `
+      <div class="day"><span class="n">${cups}</span>
+        <div class="col" style="height:0" data-h="${(cups / maxDay) * 150}px"></div>
+        <span class="d">${fmtDay(day).split(' ')[0]}</span></div>`).join('');
+
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      document.querySelectorAll('[data-w]').forEach(el => el.style.width = el.dataset.w);
+      document.querySelectorAll('[data-h]').forEach(el => el.style.height = el.dataset.h);
+    }));
+
+    const s = stats.source || {};
+    const run = s.run_id ? ` · <a href="https://github.com/${s.repo}/actions/runs/${s.run_id}">run ${s.run_id}</a>` : '';
+    document.getElementById('source').innerHTML =
+      `Built from ${s.repo || 'local'} @ ${s.sha || 'local'}${run} · ${stats.rows} rows · generated ${stats.generated_at}`;
+  }
+</script>
+</body>
+</html>
